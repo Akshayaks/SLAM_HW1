@@ -7,15 +7,17 @@
 import argparse
 import numpy as np
 import sys, os
+import random
 
 from map_reader import MapReader
 from motion_model import MotionModel
-from sensor_model import SensorModel
+from sensor_model_ak import SensorModel
 from resampling import Resampling
 
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
 import time
+import math
 
 
 def visualize_map(occupancy_map):
@@ -29,9 +31,12 @@ def visualize_map(occupancy_map):
 def visualize_timestep(X_bar, tstep, output_path):
     x_locs = X_bar[:, 0] / 10.0
     y_locs = X_bar[:, 1] / 10.0
+    # x_locs = np.random.uniform(0,800,500)
+    # y_locs = np.random.uniform(0,800,500)
+
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
     plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
-    plt.pause(0.00001)
+    plt.pause(0.0001)
     scat.remove()
 
 
@@ -41,6 +46,9 @@ def init_particles_random(num_particles, occupancy_map):
     y0_vals = np.random.uniform(0, 7000, (num_particles, 1))
     x0_vals = np.random.uniform(3000, 7000, (num_particles, 1))
     theta0_vals = np.random.uniform(-3.14, 3.14, (num_particles, 1))
+    # y0_vals = np.array([4000]).reshape(num_particles,1)
+    # x0_vals = np.array([4000]).reshape(num_particles,1)
+    # theta0_vals = np.array([-3.14]).reshape(num_particles,1)
 
     # initialize weights for all particles
     w0_vals = np.ones((num_particles, 1), dtype=np.float64)
@@ -58,8 +66,29 @@ def init_particles_freespace(num_particles, occupancy_map):
     TODO : Add your code here
     This version converges faster than init_particles_random
     """
+    #Occupancy map -> probability of the cell being occupied
+    print("Size of occupancy map: ", occupancy_map)
     X_bar_init = np.zeros((num_particles, 4))
+    obs_th = 0.5
+    indices = np.where((occupancy_map < obs_th) & (occupancy_map > -1))
+    print("Free space are: ", type(indices[1]))
+    idy = np.random.randint(0,len(indices[1]),num_particles)
+    y0_vals = []
+    x0_vals = []
+    for i in idy:
+        y0_vals.append(indices[1][i])
+        x0_vals.append(indices[0][i])
+    x0_vals = np.array(x0_vals).reshape(num_particles,1)
+    y0_vals = np.array(y0_vals).reshape(num_particles,1)
+    # x0_vals = np.array(random.sample(indices[0].tolist(),num_particles)).reshape(num_particles,1)
+    theta0_vals = np.random.uniform(-3.14, 3.14, (num_particles, 1))
 
+
+    # initialize weights for all particles
+    w0_vals = np.ones((num_particles, 1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+
+    X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
     return X_bar_init
 
 
@@ -89,7 +118,8 @@ if __name__ == '__main__':
     os.makedirs(args.output, exist_ok=True)
 
     map_obj = MapReader(src_path_map)
-    occupancy_map = map_obj.get_map()
+    occupancy_map = map_obj.get_map()  #Gives probability of each cell being occupied
+    print("occupancy_map: ", occupancy_map[400][400])
     logfile = open(src_path_log, 'r')
 
     motion_model = MotionModel()
@@ -98,6 +128,7 @@ if __name__ == '__main__':
 
     num_particles = args.num_particles
     X_bar = init_particles_random(num_particles, occupancy_map)
+    # print("Initial position of particles: ", X_bar.shape)
     # X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -120,8 +151,8 @@ if __name__ == '__main__':
         time_stamp = meas_vals[-1]
 
         # ignore pure odometry measurements for (faster debugging)
-        # if ((time_stamp <= 0.0) | (meas_type == "O")):
-        #     continue
+        if ((time_stamp <= 0.0) | (meas_type == "O")):
+            continue
 
         if (meas_type == "L"):
             # [x, y, theta] coordinates of laser in odometry frame
@@ -148,18 +179,20 @@ if __name__ == '__main__':
             """
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+            # X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
             """
             SENSOR MODEL
             """
             if (meas_type == "L"):
                 z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+                w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
-            # else:
-            #     X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+            else:
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
+        
         u_t0 = u_t1
 
         """
