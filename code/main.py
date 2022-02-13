@@ -10,9 +10,9 @@ import sys, os
 import random
 
 from map_reader import MapReader
-from motion_model_new import MotionModel
-# from motion_model import MotionModel
-from sensor_model_new import SensorModel
+# from motion_model_new import MotionModel
+from motion_model import MotionModel
+from sensor_model_repo import SensorModel
 from resampling import Resampling
 
 from matplotlib import pyplot as plt
@@ -20,6 +20,9 @@ from matplotlib import figure as fig
 import time
 import math
 
+t = 11203
+random.seed(t)
+np.random.seed(t)
 
 def visualize_map(occupancy_map):
     fig = plt.figure()
@@ -60,7 +63,7 @@ def init_particles_random(num_particles, occupancy_map):
     return X_bar_init
 
 
-def init_particles_freespace(num_particles, occupancy_map):
+def init_particles_freespace_mine(num_particles, occupancy_map):
 
     # initialize [x, y, theta] positions in world_frame for all particles
     """
@@ -90,6 +93,23 @@ def init_particles_freespace(num_particles, occupancy_map):
     w0_vals = w0_vals / num_particles
 
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
+    return X_bar_init
+
+def init_particles_freespace(num_particles, occupancy_map):
+
+    # initialize [x, y, theta] positions in world_frame for all particles
+
+    """
+    TODO : Add your code here
+    """ 
+    x, y = np.where(occupancy_map == 0)
+    idx = np.random.choice(np.arange(len(x)), num_particles, replace=False)
+    x0_vals = y[idx].reshape(len(idx),1) * 10.
+    y0_vals = x[idx].reshape(len(idx),1) * 10.
+    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
+    w0_vals = np.ones( (num_particles,1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+    X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
     return X_bar_init
 
 
@@ -128,9 +148,9 @@ if __name__ == '__main__':
     resampler = Resampling()
 
     num_particles = args.num_particles
-    X_bar = init_particles_random(num_particles, occupancy_map)
+    # X_bar = init_particles_random(num_particles, occupancy_map)
     # print("Initial position of particles: ", X_bar.shape)
-    # X_bar = init_particles_freespace(num_particles, occupancy_map)
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
     """
@@ -152,8 +172,8 @@ if __name__ == '__main__':
         time_stamp = meas_vals[-1]
 
         # ignore pure odometry measurements for (faster debugging)
-        if ((time_stamp <= 0.0) | (meas_type == "O")):
-            continue
+        # if ((time_stamp <= 0.0) | (meas_type == "O")):
+        #     continue
 
         if (meas_type == "L"):
             # [x, y, theta] coordinates of laser in odometry frame
@@ -190,6 +210,7 @@ if __name__ == '__main__':
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
             else:
+
                 X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
@@ -203,3 +224,4 @@ if __name__ == '__main__':
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
+            # visualize_timestep(X_bar, 0.00001, args.output)

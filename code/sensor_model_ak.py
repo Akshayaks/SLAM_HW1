@@ -54,22 +54,27 @@ class SensorModel:
         """
         
         prob_zt1 = 1.0
+        # print("Robot position: ", x_t1[0], x_t1[1])
         x_t = self.shift_to_laser(x_t1)
+        # print("Laser positionL ", x_t[0], x_t[1])
 
         if x_t[0] < 0 or x_t[0] >  7000 or x_t[1] < 0 or x_t[1] > 7000:
-            return 0
+            return 1e-100
+        temp = self.map[min(int(x_t[1]/10.), 799)][min(int(x_t[0]/10.), 799)]
+        if temp > 0.4 or temp == -1:
+            return 1e-100
 
         z_kt_star_array = []
         # theta = x_t[2] - math.pi/2 #-math.pi/2
 
-        for k in range(0,180): #here K is 180
-            theta = k * (math.pi/180) + x_t[2]
+        for k in range(-90,90): #here K is 180
+            theta = math.radians(k) + x_t[2]
             z_kt = z_t1_arr[k]
             # print(theta)
             z_kt_star = self.ray_cast(x_t,theta)
             # theta = theta + self._subsampling
             z_kt_star_array.append(z_kt_star)
-            if k == 160:
+            if k == 25:
                 pdb.set_trace()
             prob = self._z_hit * self.p_hit(z_kt_star,z_kt) + self._z_short * self.p_short(z_kt_star,z_kt) \
                    + self._z_max * self.p_max(z_kt) + self._z_rand * self.p_rand(z_kt)
@@ -79,43 +84,59 @@ class SensorModel:
 
     def shift_to_laser(self,x_t1): #Add transform to account for position of laser
         x_l = np.zeros(3)
-        x_l[0] = x_t1[0] + (25/10)*math.cos(x_t1[2]) #resolution
-        x_l[1] = x_t1[1] + (25/10)*math.sin(x_t1[2])
-        x_l[2] = x_t1[2]
+        x_l[0] = round((x_t1[0] + 25*math.cos(x_t1[2]))/10) #resolution
+        x_l[1] = round((x_t1[1] + 25*math.sin(x_t1[2]))/10)
+        x_l[2] = x_t1[2] - math.pi/2
         return x_l
 
     def ray_cast(self, x_t, theta):
 
         z_kt_star = 0
 
-        x0 = x_t[0]
-        y0 = x_t[1]
+        x0 = int(x_t[0])
+        y0 = int(x_t[1])
+        x = x0
+        y = y0
+        # print("Ray casting from: ", x0,y0)
 
-        for j in range(1,int(self._max_range/10)):
+        while 0 < x < 800 and 0 < y < 800 and self.map[y][x] < self.occupany_threshold:
+            x += 2*np.cos(theta)
+            y += 2*np.sin(theta)
+            x = int(round(x))
+            y = int(round(y))
+        print("Final point: ", x, y)
+        z_kt_star = math.sqrt((y-y0)**2 + (x-x0)**2)/10
 
-            x = x0 + j*math.cos(theta - math.pi/2)
-            y = y0 + j*math.sin(theta - math.pi/2)
+        # for j in range(1,int(self._max_range/10)):
+
+        #     x = x0 + j*math.cos(theta)
+        #     y = y0 + j*math.sin(theta)
+        #     print("Ray end point currently: ", x,y,x0,y0)
             
-            print("Occupancy grid: ", self.map[round(y/10)][round(x/10)])
-            if x >= 7000 or y >= 7000 or x < 0 or y < 0:
-                print("reached boundry")
-                # print(round(x),round(y))
-                x = x0 + (j-1)*math.cos(theta - math.pi/2)
-                y = y0 + (j-1)*math.sin(theta - math.pi/2)
-                dist = math.sqrt((y-y0/10)**2 + (x-x0/10)**2)
-                print("dist: ", dist)
-                z_kt_star = dist
-                break
+        #     print("Occupancy grid: ", self.map[int(y/10)][int(x/10)])
+        #     if x >= 7000 or y >= 7000 or x < 0 or y < 0:
+        #         print("reached boundry")
+        #         # print(round(x),round(y))
+        #         x = x0 + (j-1)*math.cos(theta)
+        #         y = y0 + (j-1)*math.sin(theta)
+        #         dist = math.sqrt((y-y0/10)**2 + (x-x0/10)**2)
+        #         print("dist: ", dist)
+        #         z_kt_star = dist
+        #         break
 
-            if self.map[round(x/10)][round(y/10)] < self.occupany_threshold:
-                print("reached obstacle: ", j, theta)
-                print(x,y, x0,y0)
-                dist = math.sqrt((y-y0)**2 + (x-x0)**2)
-                print("dist: ", dist)
-                z_kt_star = dist
-                break
+        #     print("Checking index: ", int(y/10), int(x/10))
 
-        print("z_kt_star: ", z_kt_star)
+        #     if self.map[int(y/10)][int(x/10)] > self.occupany_threshold:
+        #         print("reached obstacle: ", j, theta)
+        #         print(x,y, x0,y0)
+        #         dist = math.sqrt((y-y0)**2 + (x-x0)**2)
+        #         print("dist: ", dist)
+        #         z_kt_star = dist
+        #         break
+        # dist = math.sqrt((y-y0/10)**2 + (x-x0/10)**2)
+        # # print("dist: ", dist)
+        # z_kt_star = dist
+        # print("z_kt_star: ", z_kt_star)
         return z_kt_star
 
 
