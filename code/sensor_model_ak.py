@@ -42,7 +42,7 @@ class SensorModel:
         # Used in sampling angles in ray casting
         self._subsampling = 1
 
-        self.occupany_threshold = 0.2
+        self.occupany_threshold = 0.35
         self.visualization = True
         self.plot_measurement = True
 
@@ -56,21 +56,21 @@ class SensorModel:
         prob_zt1 = 1.0
         x_t = self.shift_to_laser(x_t1)
 
-        # if x_t[0] < 0 or x_t[0] >  7000 or x_t[1] < 0 or x_t[1] > 7000:
-        #     return 0
+        if x_t[0] < 0 or x_t[0] >  7000 or x_t[1] < 0 or x_t[1] > 7000:
+            return 0
 
         z_kt_star_array = []
         # theta = x_t[2] - math.pi/2 #-math.pi/2
 
-        for k in range(0,180,self._subsampling): #here K is 180
-            theta = k * (math.pi/180) + (x_t[2] - math.pi/2)
+        for k in range(0,180): #here K is 180
+            theta = k * (math.pi/180) + x_t[2]
             z_kt = z_t1_arr[k]
             # print(theta)
             z_kt_star = self.ray_cast(x_t,theta)
             # theta = theta + self._subsampling
             z_kt_star_array.append(z_kt_star)
-            # if k == 160:
-            #     pdb.set_trace()
+            if k == 160:
+                pdb.set_trace()
             prob = self._z_hit * self.p_hit(z_kt_star,z_kt) + self._z_short * self.p_short(z_kt_star,z_kt) \
                    + self._z_max * self.p_max(z_kt) + self._z_rand * self.p_rand(z_kt)
             prob_zt1 *= prob
@@ -85,41 +85,36 @@ class SensorModel:
         return x_l
 
     def ray_cast(self, x_t, theta):
-        # print("inside ray_cast")
-        # theta = x_t[2]
 
         z_kt_star = 0
 
         x0 = x_t[0]
         y0 = x_t[1]
 
-        for j in range(0,int(self._max_range)):
-            # print(x0,y0)
-            x = (x0 + j*math.cos(theta))/10
-            y = (y0 + j*math.sin(theta))/10
-            # print(round(x),round(y))
-            if round(x) > 799 or round(y) > 799:
+        for j in range(1,int(self._max_range/10)):
+
+            x = x0 + j*math.cos(theta - math.pi/2)
+            y = y0 + j*math.sin(theta - math.pi/2)
+            
+            print("Occupancy grid: ", self.map[round(y/10)][round(x/10)])
+            if x >= 7000 or y >= 7000 or x < 0 or y < 0:
                 print("reached boundry")
-                print(round(x),round(y))
-                # x = (x0 + (j-1)*math.cos(theta))/10
-                # y = (y0 + (j-1)*math.sin(theta))/10
-                dist = math.sqrt((round(y)-round(y0/10))**2 + (round(x)-round(x0/10))**2)
+                # print(round(x),round(y))
+                x = x0 + (j-1)*math.cos(theta - math.pi/2)
+                y = y0 + (j-1)*math.sin(theta - math.pi/2)
+                dist = math.sqrt((y-y0/10)**2 + (x-x0/10)**2)
                 print("dist: ", dist)
-                z_kt_star = int(dist)
-                break
-            if self.map[round(x)][round(y)] < self.occupany_threshold:
-                print("reached obstacle")
-                print(round(x),round(y))
-                dist = math.sqrt((round(y)-round(y0/10))**2 + (round(x)-round(x0/10))**2)
-                print("dist: ", dist)
-                z_kt_star = int(dist)
+                z_kt_star = dist
                 break
 
-                # if self.visualization:
-                #     plt.plot([x_t[0], x], [x_t[1], y], 'r-')
-                #     if self.plot_measurement:
-                #         plt.plot([x_t[0], x_t[0] + z_kt * math.cos(theta) / 10], [x_t[1], x_t[1] + z_kt * math.sin(theta) / 10], 'b-')
-                # break
+            if self.map[round(x/10)][round(y/10)] < self.occupany_threshold:
+                print("reached obstacle: ", j, theta)
+                print(x,y, x0,y0)
+                dist = math.sqrt((y-y0)**2 + (x-x0)**2)
+                print("dist: ", dist)
+                z_kt_star = dist
+                break
+
         print("z_kt_star: ", z_kt_star)
         return z_kt_star
 

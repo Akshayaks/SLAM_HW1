@@ -10,8 +10,9 @@ import sys, os
 import random
 
 from map_reader import MapReader
-from motion_model import MotionModel
-from sensor_model_ak import SensorModel
+from motion_model_new import MotionModel
+# from motion_model import MotionModel
+from sensor_model_new import SensorModel
 from resampling import Resampling
 
 from matplotlib import pyplot as plt
