@@ -63,7 +63,7 @@ def init_particles_random(num_particles, occupancy_map):
     return X_bar_init
 
 
-def init_particles_freespace_mine(num_particles, occupancy_map):
+def init_particles_freespace(num_particles, occupancy_map):
 
     # initialize [x, y, theta] positions in world_frame for all particles
     """
@@ -73,44 +73,22 @@ def init_particles_freespace_mine(num_particles, occupancy_map):
     #Occupancy map -> probability of the cell being occupied
     print("Size of occupancy map: ", occupancy_map)
     X_bar_init = np.zeros((num_particles, 4))
-    obs_th = 0.5
-    indices = np.where((occupancy_map < obs_th) & (occupancy_map > -1))
-    print("Free space are: ", type(indices[1]))
-    idy = np.random.randint(0,len(indices[1]),num_particles)
-    y0_vals = []
-    x0_vals = []
-    for i in idy:
-        y0_vals.append(indices[1][i])
-        x0_vals.append(indices[0][i])
-    x0_vals = np.array(x0_vals).reshape(num_particles,1)
-    y0_vals = np.array(y0_vals).reshape(num_particles,1)
-    # x0_vals = np.array(random.sample(indices[0].tolist(),num_particles)).reshape(num_particles,1)
+    indices = np.where((occupancy_map == 0))
+
+    idy = np.random.randint(0, len(indices[1]),num_particles)
+    y0_vals = indices[0][idy]
+    x0_vals = indices[1][idy]
+    x0_vals = x0_vals.reshape(num_particles,1)*10.
+    y0_vals = y0_vals.reshape(num_particles,1)*10.
+
     theta0_vals = np.random.uniform(-3.14, 3.14, (num_particles, 1))
 
-
     # initialize weights for all particles
-    w0_vals = np.ones((num_particles, 1), dtype=np.float64)
-    w0_vals = w0_vals / num_particles
+    w0_vals = np.ones((num_particles, 1), dtype=np.float64) / num_particles
 
     X_bar_init = np.hstack((x0_vals, y0_vals, theta0_vals, w0_vals))
     return X_bar_init
 
-def init_particles_freespace(num_particles, occupancy_map):
-
-    # initialize [x, y, theta] positions in world_frame for all particles
-
-    """
-    TODO : Add your code here
-    """ 
-    x, y = np.where(occupancy_map == 0)
-    idx = np.random.choice(np.arange(len(x)), num_particles, replace=False)
-    x0_vals = y[idx].reshape(len(idx),1) * 10.
-    y0_vals = x[idx].reshape(len(idx),1) * 10.
-    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
-    w0_vals = np.ones( (num_particles,1), dtype=np.float64)
-    w0_vals = w0_vals / num_particles
-    X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
-    return X_bar_init
 
 
 if __name__ == '__main__':
@@ -224,4 +202,3 @@ if __name__ == '__main__':
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
-            # visualize_timestep(X_bar, 0.00001, args.output)
