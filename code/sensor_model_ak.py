@@ -20,14 +20,14 @@ class SensorModel:
         Initialize Sensor Model parameters here
         """
         self.map = occupancy_map
-        self._max_range = 8183 #1000
-        self._sigma_hit = 250 #50 
-        self._lambda_short = 0.01 #0.1 #0.01
-        self._z_hit = 1000 #1 #2000
-        self._z_short = 0.01 #0.1 #0.01
-        self._z_max = 0.03 #0.01 #0.01
-        self._z_rand = 100000 #700 #15000
-        self._min_probability = 1e-7 #0.35
+        self._max_range = 1000
+        self._sigma_hit = 50 #250 
+        self._lambda_short = 0.1 #0.01 
+        self._z_hit = 2.5 #1000 
+        self._z_short = 0.05 #0.01 
+        self._z_max = 0.05 #0.03 
+        self._z_rand = 550 #100000 
+        self._min_probability = 0.28 #1e-7 
 
     def p_hit(self, z_kt_star, z_kt):
         if z_kt > self._max_range or z_kt < 0:

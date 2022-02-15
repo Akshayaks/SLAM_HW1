@@ -21,7 +21,7 @@ from matplotlib import figure as fig
 import time
 import math
 
-t = 11203
+t = 666
 random.seed(t)
 np.random.seed(t)
 
@@ -198,6 +198,7 @@ if __name__ == '__main__':
         """
         RESAMPLING
         """
+        # if meas_type == "L":
         X_bar = resampler.low_variance_sampler(X_bar)
 
         if args.visualize:
