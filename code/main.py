@@ -12,7 +12,7 @@ import random
 from map_reader import MapReader
 # from motion_model_new import MotionModel
 from motion_model import MotionModel
-from sensor_model_repo import SensorModel
+from sensor_model_ak import SensorModel
 from resampling import Resampling
 
 from matplotlib import pyplot as plt
@@ -20,7 +20,7 @@ from matplotlib import figure as fig
 import time
 import math
 
-t = 11203
+t = 666
 random.seed(t)
 np.random.seed(t)
 
@@ -75,7 +75,7 @@ def init_particles_freespace(num_particles, occupancy_map):
     X_bar_init = np.zeros((num_particles, 4))
     indices = np.where((occupancy_map == 0))
 
-    idy = np.random.randint(0, len(indices[1]),num_particles)
+    idy = np.random.choice(np.arange(len(indices[1])),num_particles, replace=False)
     y0_vals = indices[0][idy]
     x0_vals = indices[1][idy]
     x0_vals = x0_vals.reshape(num_particles,1)*10.
@@ -127,7 +127,6 @@ if __name__ == '__main__':
 
     num_particles = args.num_particles
     # X_bar = init_particles_random(num_particles, occupancy_map)
-    # print("Initial position of particles: ", X_bar.shape)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -198,7 +197,8 @@ if __name__ == '__main__':
         """
         RESAMPLING
         """
-        X_bar = resampler.low_variance_sampler(X_bar)
+        if (meas_type == "L"):
+            X_bar = resampler.low_variance_sampler(X_bar)
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
