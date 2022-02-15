@@ -36,12 +36,12 @@ class MotionModel:
         TODO : Add your code here
         """
         del_rot1 = math.atan2(u_t1[1] - u_t0[1],u_t1[0] - u_t0[0]) - u_t0[2]
-        del_trans = math.sqrt(math.pow(u_t0[0]-u_t1[0],2) + math.pow(u_t0[1]-u_t1[1],2))
+        del_trans = math.sqrt((u_t0[0]-u_t1[0])**2 + (u_t0[1]-u_t1[1])**2)
         del_rot2 = u_t1[2] - u_t0[2] - del_rot1
 
-        del_rot1_cap = del_rot1 - self.sample_normal(self._alpha1*math.pow(del_rot1,2) + self._alpha2*math.pow(del_trans,2))
-        del_trans_cap = del_trans - self.sample_normal(self._alpha3*math.pow(del_trans,2) + self._alpha4*(math.pow(del_rot1,2) + math.pow(del_rot2,2)))
-        del_rot2_cap = del_rot2 - self.sample_normal(self._alpha1*math.pow(del_rot2,2) + self._alpha2*math.pow(del_trans,2))
+        del_rot1_cap = del_rot1 - self.sample_normal( (self._alpha1*(del_rot1**2)) + (self._alpha2*(del_trans**2)))
+        del_trans_cap = del_trans - self.sample_normal( (self._alpha3*(del_trans**2)) + (self._alpha4*(del_rot1**2)) + (self._alpha4*(del_rot2**2)) )
+        del_rot2_cap = del_rot2 - self.sample_normal( (self._alpha1*(del_rot2**2)) + (self._alpha2*(del_trans**2)) )
 
         x_p = np.zeros(3)
         x_p[0] = x_t0[0] + del_trans_cap * np.cos(x_t0[2] + del_rot1_cap)
