@@ -48,11 +48,12 @@ class Resampling:
         param[out] X_bar_resampled : [num_particles x 4] sized array containing [x, y, theta, wt] values for resampled set of particles
         """
 
-        weights = X_bar[:, 3]/sum(X_bar[:, 3])
+        weights = X_bar[:, 3]
+        
         num_particles = X_bar.shape[0]
         X_bar_resampled = np.zeros_like(X_bar)
- 
-        r = np.random.uniform(low=0., high=(1./num_particles), size=(1,))
+        weights = weights/weights.sum()
+        r = np.random.uniform(0, 1/num_particles)
         c = weights[0]
         i = 0
 

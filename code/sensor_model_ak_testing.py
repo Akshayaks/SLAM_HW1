@@ -25,26 +25,26 @@ class SensorModel:
         The original numbers are for reference but HAVE TO be tuned.
         """
         self.map = occupancy_map
-        self._z_hit = 1
-        self._z_short = 0.1
-        self._z_max = 0.1
-        self._z_rand = 100
+        self._z_hit = 1000
+        self._z_short = 0.01
+        self._z_max = 0.03
+        self._z_rand = 1000
 
-        self._sigma_hit = 50
-        self._lambda_short = 0.1
+        self._sigma_hit = 250
+        self._lambda_short = 0.01
 
         # Used in p_max and p_rand, optionally in ray casting
-        self._max_range = 1000
+        self._max_range = 8183
 
         # Used for thresholding obstacles of the occupancy map
-        self._min_probability = 0.35
+        self._min_probability = 0.000001
 
         # Used in sampling angles in ray casting
-        self._subsampling = 1
+        # self._subsampling = 1
 
         # self.occupany_threshold = 0.35
-        self.visualization = True
-        self.plot_measurement = True
+        # self.visualization = True
+        # self.plot_measurement = True
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
@@ -57,19 +57,24 @@ class SensorModel:
         print("Robot position: ", x_t1[0], x_t1[1], x_t1[2])
         x_t = self.shift_to_laser(x_t1)
         print("Laser positionL ", x_t[0], x_t[1])
-
+        print("rob pos: ", min(int(x_t1[1]/10.), 799), min(int(x_t1[0]/10.), 799))
         # if x_t[0] < 0 or x_t[0] >  7000 or x_t[1] < 0 or x_t[1] > 7000:
         #     return 1e-100
-        # temp = self.map[min(int(x_t[1]/10.), 799)][min(int(x_t[0]/10.), 799)]
-        # if temp > 0.4 or temp == -1:
+        temp = self.map[min(int(x_t1[1]/10.), 799)][min(int(x_t1[0]/10.), 799)]
+        print(temp)
+        if temp == -1:
+            pdb.set_trace()
+        if temp > 0.4 or temp == -1:
+            return 1e-100
+        # if temp == -1:
         #     return 1e-100
 
         z_kt_star_array = []
         # theta = x_t[2] - math.pi/2 #-math.pi/2
         # print("Before k loop")
-        for k in range(-90,90): #here K is 180
+        for k in range(-90,90,10): #here K is 180
             theta = math.radians(k) + x_t[2]
-            z_kt = z_t1_arr[k]
+            z_kt = z_t1_arr[k+90]
             # print(theta)
             # print("Going to cast ray")
             z_kt_star = self.ray_cast(x_t,theta)
@@ -88,8 +93,8 @@ class SensorModel:
 
     def shift_to_laser(self,x_t1): #Add transform to account for position of laser
         x_l = np.zeros(3)
-        x_l[0] = round((x_t1[0] + 25*math.cos(x_t1[2]))/10) #resolution
-        x_l[1] = round((x_t1[1] + 25*math.sin(x_t1[2]))/10)
+        x_l[0] = int(round((x_t1[0] + 25*math.cos(x_t1[2]))/10)) #resolution
+        x_l[1] = int(round((x_t1[1] + 25*math.sin(x_t1[2]))/10))
         x_l[2] = x_t1[2] #- math.pi/2
         return x_l
 
@@ -108,20 +113,23 @@ class SensorModel:
         step = 0
         while 0 < x < 800 and 0 < y < 800 and abs(self.map[y][x]) < self._min_probability:
             step += 1
-            x += 2*np.cos(theta)
-            y += 2*np.sin(theta)
-            x = int(round(x))
-            y = int(round(y))
-            if step == 49:
-                print("Final point at step 49: ", x, y)
-                print("Occupancy map: ", abs(self.map[y, x]))
-                break
+            x0 += 2*np.cos(theta)
+            y0 += 2*np.sin(theta)
+            x = int(round(x0))
+            y = int(round(y0))
+            # if step == 49:
+            #     print("Final point at step 49: ", x, y)
+            #     print("Occupancy map: ", abs(self.map[y, x]))
+            #     break
         print("occupancy_map: ", self.map[y][x])
         print("steps: ", step)
         print("Final point: ", x, y)
         print("Start point: ", x0, y0)
+        start_pt = np.array([x_t[0], x_t[1]])
+        end_pt = np.array([x, y])
+        z_kt_star = np.linalg.norm(end_pt-start_pt) * 10
         # pdb.set_trace()
-        z_kt_star = math.sqrt((y-y0)**2 + (x-x0)**2)*10
+        # z_kt_star = math.sqrt((y-y0)**2 + (x-x0)**2)*10
 
         # for j in range(1,int(self._max_range/10)):
 
@@ -157,32 +165,59 @@ class SensorModel:
 
 
     def p_hit(self, z_kt_star, z_kt):
-        if z_kt > self._z_max or z_kt < 0:
+        if z_kt > self._max_range or z_kt < 0:
             return 0
         else:
-            c = [1/(math.sqrt(2*math.pi*self._sigma_hit**2))]
+            c = 1/math.sqrt(2*math.pi*self._sigma_hit**2)
             p = -0.5*(z_kt - z_kt_star)**2/self._sigma_hit**2
-            eta =  1                                #integral also defined as self._sigma_hit*math.sqrt(2*math.pi)
-            prob = eta*c*math.pow(math.e,p)
+            eta =  1
+            print(c)
+            print(p)                                #integral also defined as self._sigma_hit*math.sqrt(2*math.pi)
+            prob = eta*c*math.exp(p)
         return prob
 
     def p_short(self, z_kt_star, z_kt):
         if z_kt > z_kt_star or z_kt < 0:
             return 0
         else:
-            eta = 1/(1 - math.pow(math.e,-self._lambda_short*z_kt_star))
+            eta = 1/(1 - math.exp(-self._lambda_short*z_kt_star))
             prob = eta * self._lambda_short * math.pow(math.e,-self._lambda_short*z_kt)
         return prob
 
     def p_max(self, z_kt):
-        if z_kt == self._z_max:
-            return 1
-        return 0
+        if z_kt == self._max_range:
+            return 1.0
+        return 0.0
 
     def p_rand(self, z_kt):
-        if z_kt >= 0 and z_kt < self._z_max:
-            return 1/self._z_max
+        if z_kt >= 0 and z_kt < self._max_range:
+            return 1/self._max_range
         return 0
+    # def p_hit(self, z_tk_star, z_tk):
+    #     if 0 <= z_tk <= self._max_range:
+    #         gaussian = (math.exp(-(z_tk - z_tk_star)**2 / (2 * self._sigma_hit**2)))/ math.sqrt(2 * math.pi * self._sigma_hit**2)
+    #         return gaussian
+    #     else:
+    #         return 0.0
+
+    # def p_short(self, z_tk_star, z_tk):
+    #     if 0 <= z_tk <= z_tk_star:
+    #         eta = 1 / (1 - math.exp(-self._lambda_short * z_tk_star))
+    #         return eta * self._lambda_short * math.exp(-self._lambda_short * z_tk)
+    #     else:
+    #         return 0.0
+
+    # def p_max(self, z_tk):
+    #     if z_tk == self._z_max:
+    #         return 1.0
+    #     else:
+    #         return 0.0
+
+    # def p_rand(self, z_tk):
+    #     if 0 <= z_tk < self._z_max:
+    #         return 1.0 / self._z_max
+    #     else:
+    #         return 0.0
 
 
 
