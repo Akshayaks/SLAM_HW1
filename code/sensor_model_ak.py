@@ -25,21 +25,21 @@ class SensorModel:
         The original numbers are for reference but HAVE TO be tuned.
         """
         self.map = occupancy_map
-        self._z_hit = 1000 # weight probability for hitting 
-        self._z_short = 0.01 # weight probability for robot hitting a shorter distance
-        self._z_max = 0.03 # weight for reaching out of range
-        self._z_rand = 100000 #weight for random noise
+        self._z_hit = 2.5 # weight probability for hitting 
+        self._z_short = 0.05 # weight probability for robot hitting a shorter distance (corners robots -- decrease to help decrease)
+        self._z_max = 0.05 # weight for reaching out of range
+        self._z_rand = 550 #weight for random noise (longer time for lesser number of particles; ensure particles are in the correct place)
 
-        self._sigma_hit = 250
-        self._lambda_short = 0.01
+        self._sigma_hit = 50
+        self._lambda_short = 0.1
 
         # Used in p_max and p_rand, optionally in ray casting
-        self._max_range = 1000
+        self._max_range = 1000 #constant
 
         # Used in sampling angles in ray casting
-        self._subsampling = 5 # keep
+        self._subsampling = 5
 
-        self.occupancy_threshold = 1E-5  # keep (if laser goes thru the wall)
+        self.occupancy_threshold = 0.28  # keep (if laser goes thru the wall)
         self.probability_min = 0.4 # keep
         self.visualization = True
         self.plot_measurement = True

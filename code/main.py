@@ -197,7 +197,8 @@ if __name__ == '__main__':
         """
         RESAMPLING
         """
-        X_bar = resampler.low_variance_sampler(X_bar)
+        if (meas_type == "L"):
+            X_bar = resampler.low_variance_sampler(X_bar)
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
