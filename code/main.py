@@ -20,7 +20,7 @@ from matplotlib import figure as fig
 import time
 import math
 
-t = 11203
+t = 666
 random.seed(t)
 np.random.seed(t)
 
