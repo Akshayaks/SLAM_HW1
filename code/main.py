@@ -148,10 +148,6 @@ if __name__ == '__main__':
         odometry_robot = meas_vals[0:3]
         time_stamp = meas_vals[-1]
 
-        # ignore pure odometry measurements for (faster debugging)
-        # if ((time_stamp <= 0.0) | (meas_type == "O")):
-        #     continue
-
         if (meas_type == "L"):
             # [x, y, theta] coordinates of laser in odometry frame
             odometry_laser = meas_vals[3:6]
@@ -171,27 +167,22 @@ if __name__ == '__main__':
 
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
-        for m in range(0, num_particles):
-            """
+        """
             MOTION MODEL
-            """
-            x_t0 = X_bar[m, 0:3]
-            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-            # X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
-
-            """
+        """
+        x_t0 = X_bar[:,0:3]
+        x_t1 = motion_model.update_vectorized(u_t0, u_t1, x_t0)
+        """
             SENSOR MODEL
             """
-            if (meas_type == "L"):
-                z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
-                X_bar_new[m, :] = np.hstack((x_t1, w_t))
-            else:
-
-                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
-
+        if (meas_type == "L"):
+            z_t = ranges
+            w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
+            X_bar_new = np.hstack((x_t1, w_t))
+        else:
+            X_bar_new = np.hstack((x_t1, X_bar[:,3].reshape(num_particles,1)))
+            
         X_bar = X_bar_new
-        
         u_t0 = u_t1
 
         """
