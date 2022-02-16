@@ -107,7 +107,7 @@ if __name__ == '__main__':
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='../data/map/wean.dat')
-    parser.add_argument('--path_to_log', default='../data/log/robotdata1.log')
+    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap.log')
     parser.add_argument('--output', default='results')
     parser.add_argument('--num_particles', default=500, type=int)
     parser.add_argument('--visualize', action='store_true')
@@ -129,11 +129,20 @@ if __name__ == '__main__':
     num_particles = args.num_particles
     # X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
+
+    wt_f = 0
+    wt_s = 0
+    wt_avg = 0
+
+    alpha_slow = 0.001
+    alpha_fast = 1.0
+
     """
     Monte Carlo Localization Algorithm : Main Loop
     """
     if args.visualize:
         visualize_map(occupancy_map)
+    prev_time_stamp = 0
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
@@ -192,6 +201,11 @@ if __name__ == '__main__':
                 X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
+
+        print("X_bar shape: ", X_bar_new.shape)
+        wt_avg = np.sum(X_bar_new,axis=0)[-1]/X_bar_new.shape[0]
+        wt_s += alpha_slow*(wt_avg - wt_s)
+        wt_f += alpha_fast*(wt_avg - wt_f)
         
         u_t0 = u_t1
 
@@ -199,7 +213,12 @@ if __name__ == '__main__':
         RESAMPLING
         """
         # if meas_type == "L":
-        X_bar = resampler.low_variance_sampler(X_bar)
-
+        # if not first_time_idx and time_stamp - prev_time_stamp > 0.85:
+        obs_threshold = 0.28
+        X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, obs_threshold, X_bar, wt_f, wt_s, num_particles)
+        # else:
+        #     X_bar = resampler.low_variance_sampler(X_bar)
+        
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
+        prev_time_stamp = time_stamp
