@@ -129,6 +129,9 @@ if __name__ == '__main__':
     num_particles = args.num_particles
     # X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
+    X_prev = X_bar
+
+    kidnapped = False
 
     wt_f = 0
     wt_s = 0
@@ -143,9 +146,12 @@ if __name__ == '__main__':
     if args.visualize:
         visualize_map(occupancy_map)
     prev_time_stamp = 0
+    odom_prev = [0.0, 0.0, 0.0]
+    zt_prev = []
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
+        print("first_time_idx: ", first_time_idx)
 
         # Read a single 'line' from the log file (can be either odometry or laser measurement)
         # L : laser scan measurement, O : odometry measurement
@@ -176,6 +182,8 @@ if __name__ == '__main__':
             first_time_idx = False
             continue
 
+        # if not first_time_idx:
+
         X_bar_new = np.zeros((num_particles, 4), dtype=np.float64)
         u_t1 = odometry_robot
 
@@ -200,9 +208,29 @@ if __name__ == '__main__':
 
                 X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
+        if time_idx > 2:
+            print("odometry_robot: ", odometry_robot)
+            print("odom_prev: ", odom_prev)
+            diff = np.linalg.norm(odometry_robot - odom_prev)
+            diff_laser = np.linalg.norm(ranges - zt_prev)
+            print("Diff: ", diff)
+            if diff > 15: #15 worked
+                print("Kidnapped")
+                kidnapped = True 
+                # exit(0)
+        
+        #Detecting kidnapping
+        # delx = np.sum(np.linalg.norm(X_bar[:,0] - X_bar_new[:,0]))
+        # dely = np.sum(np.linalg.norm(X_bar[:,1] - X_bar_new[:,1]))
+        # change = (delx + dely)/2
+        # print("Change: ", change)
+        # if change > 50:
+        #     kidnapped = True 
+        #     X_prev = X_bar
+        #     exit(0)
         X_bar = X_bar_new
 
-        print("X_bar shape: ", X_bar_new.shape)
+        # print("X_bar shape: ", X_bar_new.shape)
         wt_avg = np.sum(X_bar_new,axis=0)[-1]/X_bar_new.shape[0]
         wt_s += alpha_slow*(wt_avg - wt_s)
         wt_f += alpha_fast*(wt_avg - wt_f)
@@ -213,12 +241,15 @@ if __name__ == '__main__':
         RESAMPLING
         """
         # if meas_type == "L":
-        # if not first_time_idx and time_stamp - prev_time_stamp > 0.85:
-        obs_threshold = 0.28
-        X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, obs_threshold, X_bar, wt_f, wt_s, num_particles)
-        # else:
-        #     X_bar = resampler.low_variance_sampler(X_bar)
+        if not first_time_idx and kidnapped: #time_stamp - prev_time_stamp > 0.85:
+            obs_threshold = 0.28
+            X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, obs_threshold, X_bar, X_prev, diff, wt_f, wt_s, num_particles)
+            kidnapped = False
+        else:
+            X_bar = resampler.low_variance_sampler(X_bar)
         
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
         prev_time_stamp = time_stamp
+        odom_prev = odometry_robot
+        zt_prev = ranges

@@ -71,28 +71,36 @@ class Resampling:
 
         return X_bar_resampled
 
-    def low_variance_sampler_kidnapped_robot(self, map, obs_threshold, X_bar, wt_f, wt_s, num_particles):
+    def low_variance_sampler_kidnapped_robot(self, map, obs_threshold, X_bar, X_prev, change, wt_f, wt_s, num_particles):
 
         """
         param[in] X_bar : [num_particles x 4] sized array containing [x, y, theta, wt] values for all particles
         param[out] X_bar_resampled : [num_particles x 4] sized array containing [x, y, theta, wt] values for resampled set of particles
         """
 
-        
+        prev_x = np.sum(X_prev[:,0])/num_particles
+        prev_y = np.sum(X_prev[:,1])/num_particles
+        prev_theta = np.sum(X_prev[:,2])/num_particles
+        print("previous position: ", prev_x, prev_y)
+
         X_bar_resampled = []
         rand_no = np.random.uniform(0,1)
         k = 0
         # r_part = 0
-        if rand_no < max(0.0,1.0 - wt_f/wt_s): #Add random particle with probability max(0,1 - w_fast/w_slow)
+        # if rand_no < max(0.0,1.0 - wt_f/wt_s): #Add random particle with probability max(0,1 - w_fast/w_slow)
+        for l in range(25):
             # k = 0
             while 1:
-                x_pos = np.random.uniform(0,1)*799
-                y_pos = np.random.uniform(0,1)*799
-                theta = np.random.uniform(-3.14,3.14)
+                # x_pos = 3000 + np.random.uniform(0,1)*2000
+                # y_pos = np.random.uniform(0,1)*7000
+                x_pos = np.random.normal(prev_x,change)
+                y_pos = np.random.normal(prev_y,change)
+                theta = np.random.normal(prev_theta,0.2)
                 wt = 1/num_particles #np.random.uniform(0,1)
+                print(x_pos,y_pos)
                 
 
-                if map[int(round(y_pos))][int(round(x_pos))] < 0.9:
+                if map[int(round(y_pos/10))][int(round(x_pos/10))] == 0:
                     X_bar_resampled.append([x_pos, y_pos, theta, wt])
                     # X_bar.append([x_pos, y_pos, theta, wt])
                     # weights.append(wt)
