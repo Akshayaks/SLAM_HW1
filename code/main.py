@@ -107,7 +107,7 @@ if __name__ == '__main__':
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='../data/map/wean.dat')
-    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap.log')
+    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap3.log')
     parser.add_argument('--output', default='results')
     parser.add_argument('--num_particles', default=500, type=int)
     parser.add_argument('--visualize', action='store_true')
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
-        print("first_time_idx: ", first_time_idx)
+        # print("first_time_idx: ", first_time_idx)
 
         # Read a single 'line' from the log file (can be either odometry or laser measurement)
         # L : laser scan measurement, O : odometry measurement
@@ -209,11 +209,11 @@ if __name__ == '__main__':
                 X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         if time_idx > 2:
-            print("odometry_robot: ", odometry_robot)
-            print("odom_prev: ", odom_prev)
+            # print("odometry_robot: ", odometry_robot)
+            # print("odom_prev: ", odom_prev)
             diff = np.linalg.norm(odometry_robot - odom_prev)
             diff_laser = np.linalg.norm(ranges - zt_prev)
-            print("Diff: ", diff)
+            # print("Diff: ", diff)
             if diff > 15: #15 worked
                 print("Kidnapped")
                 kidnapped = True 
@@ -243,7 +243,10 @@ if __name__ == '__main__':
         # if meas_type == "L":
         if not first_time_idx and kidnapped: #time_stamp - prev_time_stamp > 0.85:
             obs_threshold = 0.28
+            diff = 0
+            # X_bar = init_particles_freespace(num_particles, occupancy_map)
             X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, obs_threshold, X_bar, X_prev, diff, wt_f, wt_s, num_particles)
+            # X_bar = resampler.low_variance_sampler_augmented(occupancy_map, obs_threshold, X_bar, wt_f, wt_s, num_particles)
             kidnapped = False
         else:
             X_bar = resampler.low_variance_sampler(X_bar)
