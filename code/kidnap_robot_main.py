@@ -10,10 +10,9 @@ import sys, os
 import random
 
 from map_reader import MapReader
-# from motion_model_new import MotionModel
-from motion_model import MotionModel
-from sensor_model import SensorModel
-from resampling import Resampling
+from motion_model_kidnap import MotionModel
+from sensor_model_kidnap import SensorModel
+from resampling_kidnap import Resampling
 
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
@@ -35,8 +34,7 @@ def visualize_map(occupancy_map):
 def visualize_timestep(X_bar, tstep, output_path):
     x_locs = X_bar[:, 0] / 10.0
     y_locs = X_bar[:, 1] / 10.0
-    # x_locs = np.random.uniform(0,800,500)
-    # y_locs = np.random.uniform(0,800,500)
+    
 
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
     plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
@@ -50,9 +48,7 @@ def init_particles_random(num_particles, occupancy_map):
     y0_vals = np.random.uniform(0, 7000, (num_particles, 1))
     x0_vals = np.random.uniform(3000, 7000, (num_particles, 1))
     theta0_vals = np.random.uniform(-3.14, 3.14, (num_particles, 1))
-    # y0_vals = np.array([4000]).reshape(num_particles,1)
-    # x0_vals = np.array([4000]).reshape(num_particles,1)
-    # theta0_vals = np.array([-3.14]).reshape(num_particles,1)
+    
 
     # initialize weights for all particles
     w0_vals = np.ones((num_particles, 1), dtype=np.float64)
@@ -106,7 +102,7 @@ if __name__ == '__main__':
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='../data/map/wean.dat')
-    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap.log')
+    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap4.log')
     parser.add_argument('--output', default='results')
     parser.add_argument('--num_particles', default=500, type=int)
     parser.add_argument('--visualize', action='store_true')
@@ -128,29 +124,29 @@ if __name__ == '__main__':
     num_particles = args.num_particles
     # X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
-
     X_prev = X_bar
 
     kidnapped = False
 
-    wt_f = 0.2
+    wt_f = 0
     wt_s = 0
     wt_avg = 0
 
-    alpha_slow = 0.001
-    alpha_fast = 1.0
+    alpha_slow = 0.05
+    alpha_fast = 0.001
+
     """
     Monte Carlo Localization Algorithm : Main Loop
     """
     if args.visualize:
         visualize_map(occupancy_map)
-
     prev_time_stamp = 0
     odom_prev = [0.0, 0.0, 0.0]
     zt_prev = []
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
+        # print("first_time_idx: ", first_time_idx)
 
         # Read a single 'line' from the log file (can be either odometry or laser measurement)
         # L : laser scan measurement, O : odometry measurement
@@ -162,6 +158,10 @@ if __name__ == '__main__':
         # odometry reading [x, y, theta] in odometry frame
         odometry_robot = meas_vals[0:3]
         time_stamp = meas_vals[-1]
+
+        # ignore pure odometry measurements for (faster debugging)
+        # if ((time_stamp <= 0.0) | (meas_type == "O")):
+        #     continue
 
         if (meas_type == "L"):
             # [x, y, theta] coordinates of laser in odometry frame
@@ -177,63 +177,66 @@ if __name__ == '__main__':
             first_time_idx = False
             continue
 
+        # if not first_time_idx:
+
         X_bar_new = np.zeros((num_particles, 4), dtype=np.float64)
         u_t1 = odometry_robot
 
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
-        """
+        for m in range(0, num_particles):
+            """
             MOTION MODEL
-        """
-        x_t0 = X_bar[:,0:3]
-        x_t1 = motion_model.update_vectorized(u_t0, u_t1, x_t0)
-        """
+            """
+            x_t0 = X_bar[m, 0:3]
+            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+            # X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+
+            """
             SENSOR MODEL
             """
-        if (meas_type == "L"):
-            z_t = ranges
-            w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
-            X_bar_new = np.hstack((x_t1, w_t))
-        else:
-            X_bar_new = np.hstack((x_t1, X_bar[:,3]))
+            if (meas_type == "L"):
+                z_t = ranges
+                w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
+                X_bar_new[m, :] = np.hstack((x_t1, w_t))
+            else:
 
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+
+        #Detecting whether the robot got kidnapped using odometry measurements
+        diff = 0
         if time_idx > 2:
-            # print("odometry_robot: ", odometry_robot)
-            # print("odom_prev: ", odom_prev)
+    
             diff = np.linalg.norm(odometry_robot - odom_prev)
             diff_laser = np.linalg.norm(ranges - zt_prev)
-            # print("Diff: ", diff)
-            if diff > 15: #15 worked
+            print("Diff: ", diff)
+            if diff > 15: 
                 print("Kidnapped")
                 kidnapped = True 
-                # exit(0)
-            
+    
+        
         X_bar = X_bar_new
 
-        # print("X_bar shape: ", X_bar_new.shape)
+        #Updating the weights that determine when a random sample is added
         wt_avg = np.sum(X_bar_new,axis=0)[-1]/X_bar_new.shape[0]
         wt_s += alpha_slow*(wt_avg - wt_s)
         wt_f += alpha_fast*(wt_avg - wt_f)
-
+        
         u_t0 = u_t1
 
         """
         RESAMPLING
         """
-        if (meas_type == "L"):
-            if not first_time_idx and kidnapped: #time_stamp - prev_time_stamp > 0.85:
-                obs_threshold = 0.28
-                diff = 0
-                # X_bar = init_particles_freespace(num_particles, occupancy_map)
-                X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, obs_threshold, X_bar, X_prev, diff, wt_f, wt_s, num_particles)
-                # X_bar = resampler.low_variance_sampler_augmented(occupancy_map, obs_threshold, X_bar, wt_f, wt_s, num_particles)
-                kidnapped = False
-            else:
-                X_bar = resampler.low_variance_sampler(X_bar)
-
+        # if meas_type == "L":
+        if not first_time_idx and kidnapped: 
+            X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, odometry_robot, X_bar, X_prev, diff, wt_f, wt_s, num_particles)
+            kidnapped = False
+        else:
+            X_bar = resampler.low_variance_sampler(X_bar)
+        # print("Number of particles: ", X_bar.shape[0])
+        
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
-
         prev_time_stamp = time_stamp
         odom_prev = odometry_robot
         zt_prev = ranges
