@@ -195,7 +195,7 @@ if __name__ == '__main__':
             w_t = sensor_model.beam_range_finder_model(z_t, x_t1) #The returned P(zt/xt) is used as the weights
             X_bar_new = np.hstack((x_t1, w_t))
         else:
-            X_bar_new = np.hstack((x_t1, X_bar[:,3].reshape(num_particles,1)))
+            X_bar_new = np.hstack((x_t1, X_bar[:,3]))
 
         if time_idx > 2:
             # print("odometry_robot: ", odometry_robot)
