@@ -107,7 +107,7 @@ if __name__ == '__main__':
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--path_to_map', default='../data/map/wean.dat')
-    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap3.log')
+    parser.add_argument('--path_to_log', default='../data/log/robotdata_kidnap4.log')
     parser.add_argument('--output', default='results')
     parser.add_argument('--num_particles', default=500, type=int)
     parser.add_argument('--visualize', action='store_true')
@@ -137,8 +137,8 @@ if __name__ == '__main__':
     wt_s = 0
     wt_avg = 0
 
-    alpha_slow = 0.001
-    alpha_fast = 1.0
+    alpha_slow = 0.05
+    alpha_fast = 0.001
 
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -208,29 +208,21 @@ if __name__ == '__main__':
 
                 X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
+        #Detecting whether the robot got kidnapped using odometry measurements
+        diff = 0
         if time_idx > 2:
-            # print("odometry_robot: ", odometry_robot)
-            # print("odom_prev: ", odom_prev)
+    
             diff = np.linalg.norm(odometry_robot - odom_prev)
             diff_laser = np.linalg.norm(ranges - zt_prev)
-            # print("Diff: ", diff)
-            if diff > 15: #15 worked
+            print("Diff: ", diff)
+            if diff > 15: 
                 print("Kidnapped")
                 kidnapped = True 
-                # exit(0)
+    
         
-        #Detecting kidnapping
-        # delx = np.sum(np.linalg.norm(X_bar[:,0] - X_bar_new[:,0]))
-        # dely = np.sum(np.linalg.norm(X_bar[:,1] - X_bar_new[:,1]))
-        # change = (delx + dely)/2
-        # print("Change: ", change)
-        # if change > 50:
-        #     kidnapped = True 
-        #     X_prev = X_bar
-        #     exit(0)
         X_bar = X_bar_new
 
-        # print("X_bar shape: ", X_bar_new.shape)
+        #Updating the weights that determine when a random sample is added
         wt_avg = np.sum(X_bar_new,axis=0)[-1]/X_bar_new.shape[0]
         wt_s += alpha_slow*(wt_avg - wt_s)
         wt_f += alpha_fast*(wt_avg - wt_f)
@@ -241,15 +233,12 @@ if __name__ == '__main__':
         RESAMPLING
         """
         # if meas_type == "L":
-        if not first_time_idx and kidnapped: #time_stamp - prev_time_stamp > 0.85:
-            obs_threshold = 0.28
-            diff = 0
-            # X_bar = init_particles_freespace(num_particles, occupancy_map)
-            X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, obs_threshold, X_bar, X_prev, diff, wt_f, wt_s, num_particles)
-            # X_bar = resampler.low_variance_sampler_augmented(occupancy_map, obs_threshold, X_bar, wt_f, wt_s, num_particles)
+        if not first_time_idx and kidnapped: 
+            X_bar = resampler.low_variance_sampler_kidnapped_robot(occupancy_map, odometry_robot, X_bar, X_prev, diff, wt_f, wt_s, num_particles)
             kidnapped = False
         else:
             X_bar = resampler.low_variance_sampler(X_bar)
+        # print("Number of particles: ", X_bar.shape[0])
         
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
