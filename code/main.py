@@ -38,7 +38,7 @@ def visualize_timestep(X_bar, tstep, output_path):
     # x_locs = np.random.uniform(0,800,500)
     # y_locs = np.random.uniform(0,800,500)
 
-    scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
+    scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=3)
     plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
     plt.pause(0.0001)
     scat.remove()
