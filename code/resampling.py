@@ -164,6 +164,8 @@ class Resampling:
 
             X_bar_resampled.append(X_bar[i,:])
 
+        print("Returned X_bar_resampled: ", len(X_bar_resampled))
+
         return np.array(X_bar_resampled)
 
     def add_particles(X_bar_resampled):
