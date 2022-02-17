@@ -31,7 +31,7 @@ class SensorModel:
         self._z_rand = 550 #weight for random noise (longer time for lesser number of particles; ensure particles are in the correct place)
 
         self._sigma_hit = 50
-        self._lambda_short = 0.1
+        self._lambda_short = 0.1 # intrinsic parameter for short ray measurement model described y the exponential distribution
 
         # Used in p_max and p_rand, optionally in ray casting
         self._max_range = 1000 #constant
