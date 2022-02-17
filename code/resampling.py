@@ -67,6 +67,79 @@ class Resampling:
 
         return X_bar_resampled
 
+    def low_variance_sampler_kidnapped_robot(self, map, obs_threshold, X_bar, X_prev, change, wt_f, wt_s, num_particles):
+
+            """
+            param[in] X_bar : [num_particles x 4] sized array containing [x, y, theta, wt] values for all particles
+            param[out] X_bar_resampled : [num_particles x 4] sized array containing [x, y, theta, wt] values for resampled set of particles
+            """
+
+            prev_x = np.sum(X_bar[:,0])/num_particles
+            prev_y = np.sum(X_bar[:,1])/num_particles
+            prev_theta = np.sum(X_bar[:,2])/num_particles
+            # print("previous position: ", prev_x, prev_y)
+
+            weights = X_bar[:, 3]        
+            
+            num_particles = X_bar.shape[0]
+            
+            weights = weights/weights.sum()
+            r = np.random.uniform(0, 1/num_particles)
+            c = weights[0]
+
+            X_bar_resampled = [] #X_bar.tolist()
+            i = 0
+            k = 0
+            print("Rand threshold: ", wt_f/wt_s)
+
+            for m in range(num_particles):
+                rand_no = np.random.uniform(0,1)
+                print("Rand_no: ", rand_no)
+                
+                # r_part = 0
+                x_pos = 0
+                y_pos = 0 
+                theta = 0 
+                wt = 0 
+
+                if rand_no < max(0.0,1.0 - wt_f/wt_s):
+
+                    while 1:
+                        x_pos = 3000 + np.random.uniform(0,1)*2000
+                        y_pos = np.random.uniform(0,1)*7000
+                        # x_pos = np.random.normal(prev_x,2*change)
+                        # y_pos = np.random.normal(prev_y,2*change)
+                        # theta = np.random.normal(prev_theta,2*change)
+                        theta = np.random.uniform(-3.14,3.14)
+                        wt = 1/num_particles #np.random.uniform(0,1)
+                        # print(x_pos,y_pos)
+                    
+
+                        if map[int(round(y_pos/10))][int(round(x_pos/10))] == 0:
+                            X_bar_resampled.append([x_pos, y_pos, theta, wt])
+                            # X_bar.append([x_pos, y_pos, theta, wt])
+                            # weights.append(wt)
+                            # c += wt
+                            # r_part += 1
+                            k += 1
+                            break
+                        else:
+                            continue
+                    # X_bar_resampled.append([x_pos, y_pos, theta, wt])
+                    # k += 1
+
+                print("Number of random particles added: ", k)
+                u = r + ((m*1.0)/num_particles)
+                while(u > c and i < num_particles - 1):
+                    i = i + 1
+                    c = c + weights[i]
+
+                X_bar_resampled.append(X_bar[i,:])
+
+            print("X_bar_resampled shape: ", np.array(X_bar_resampled)[:,3].shape)
+
+            return np.array(X_bar_resampled)
+
     def add_particles(X_bar_resampled):
 
         mean_weight = np.mean(X_bar_resampled[:,3])
