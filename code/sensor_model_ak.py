@@ -90,6 +90,22 @@ class SensorModel:
         return dist
 
 
+    def plot_ray_cast(self, origin_x, origin_y, robot_theta, step):
+
+        x_rough = origin_x
+        y_rough = origin_y
+        x_int = origin_x
+        y_int = origin_y
+        theta = robot_theta + math.radians(step) 
+        while 0 < x_int < self.map.shape[1] and 0 < y_int < self.map.shape[0] and (abs(self.map[y_int,x_int]) < self.occupancy_threshold):
+            x_rough += 2*np.cos(theta)
+            y_rough += 2*np.sin(theta)
+            x_int = int(round(x_rough))
+            y_int = int(round(y_rough))
+        dist = math.sqrt((x_int-origin_x)**2 + (y_int-origin_y)**2) * 10
+        ray = [x_int, y_int]
+        return ray
+
     def p_hit(self, z_kt_star, z_kt):
         if 0 <= z_kt <= self._max_range:
             prob = (math.exp(-((z_kt - z_kt_star)**2)/(2 * self._sigma_hit**2)))/(math.sqrt(2 * math.pi * self._sigma_hit**2))
